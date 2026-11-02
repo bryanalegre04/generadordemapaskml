@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DABRIXO S.A.C. · Mapas KML</title>
+<meta name="description" content="Genera mapas KML por ruta y viaje a partir de la hoja de ruta, con vista de mapa interactiva.">
+<!-- Tipografías -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+<!-- Mapa interactivo (Leaflet) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<!-- Lector de Excel (SheetJS) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* =========================================================
+ * estilos.css — Generador de Mapas KML · DABRIXO S.A.C.
+ * Tema oscuro por defecto + tema claro (data-theme="light")
+ * ========================================================= */
+
+:root{
+  --bg:#070b18;
+  --bg-glow-1:rgba(59,130,246,.22);
+  --bg-glow-2:rgba(168,85,247,.18);
+  --panel:#0f1629;
+  --panel-2:#141d36;
+  --panel-3:#1b2645;
+  --line:#22305a;
+  --ink:#eef2ff;
+  --muted:#8b98bf;
+  --brand-1:#3b82f6;
+  --brand-2:#8b5cf6;
+  --brand-3:#22d3ee;
+  --accent:#fbbf24;
+  --ok:#22c55e;
+  --danger:#f43f5e;
+  --warn:#fb923c;
+  --grad:linear-gradient(135deg,var(--brand-1),var(--brand-2));
+  --grad-hot:linear-gradient(135deg,#f59e0b,#ef4444 55%,#d946ef);
+  --shadow:0 20px 50px -20px rgba(0,0,0,.65);
+  --radius:18px;
+  --map-filter:none;
+}
+:root[data-theme="light"]{
+  --bg:#eef2fb;
+  --bg-glow-1:rgba(59,130,246,.18);
+  --bg-glow-2:rgba(168,85,247,.14);
+  --panel:#ffffff;
+  --panel-2:#f6f8fe;
+  --panel-3:#edf1fb;
+  --line:#dbe2f3;
+  --ink:#0d1530;
+  --muted:#5d6a8f;
+  --shadow:0 18px 40px -22px rgba(30,50,110,.35);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:
+    radial-gradient(900px 500px at 8% -10%,var(--bg-glow-1),transparent 60%),
+    radial-gradient(800px 500px at 100% 0%,var(--bg-glow-2),transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--ink);
+  font:15px/1.5 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  min-height:100vh;
+  transition:background-color .3s,color .3s;
+}
+.mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
+.hidden{display:none!important}
+.wrap{max-width:1440px;margin:0 auto;padding:18px 16px 60px}
+button{font:inherit;color:inherit;cursor:pointer}
+svg.i{width:18px;height:18px;flex:none}
+
+/* ---------- Barra superior ---------- */
+.topbar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 16px;border:1px solid var(--line);border-radius:var(--radius);
+  background:color-mix(in srgb,var(--panel) 82%,transparent);
+  backdrop-filter:blur(12px);position:sticky;top:10px;z-index:1000;box-shadow:var(--shadow);
+}
+.logo{
+  width:46px;height:46px;border-radius:14px;background:var(--grad);display:grid;place-items:center;color:#fff;flex:none;
+  box-shadow:0 8px 24px -6px rgba(99,102,241,.7);position:relative;overflow:hidden;
+}
+.logo::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.45) 50%,transparent 70%);transform:translateX(-100%);animation:shine 4s ease-in-out infinite}
+@keyframes shine{0%,60%{transform:translateX(-100%)}80%,100%{transform:translateX(100%)}}
+.brand{font-size:11.5px;font-weight:800;letter-spacing:.2em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.title{font-size:20px;font-weight:800;margin:0;letter-spacing:-.01em}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip-date{display:none;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:7px 12px;border-radius:999px;background:var(--panel-3);border:1px solid var(--line)}
+.chip-date.show{display:inline-flex}
+
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:9px 14px;font-weight:700;font-size:14px;transition:transform .15s,border-color .15s,background .15s,box-shadow .15s}
+.btn:hover{border-color:var(--brand-1);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.primary{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 10px 24px -10px rgba(99,102,241,.9)}
+.btn.primary:hover{box-shadow:0 14px 30px -10px rgba(99,102,241,1)}
+.btn.hot{background:var(--grad-hot);border-color:transparent;color:#fff;box-shadow:0 10px 24px -10px rgba(239,68,68,.8)}
+.btn.ghost{background:transparent}
+.btn.icon{padding:9px;border-radius:12px}
+.btn.sm{padding:6px 10px;font-size:12.5px;border-radius:10px}
+
+/* ---------- Pantalla inicial ---------- */
+.hero{margin-top:22px;display:grid;grid-template-columns:1.1fr .9fr;gap:22px;align-items:stretch}
+@media (max-width:980px){.hero{grid-template-columns:1fr}}
+.hero-copy{padding:34px 30px;border-radius:24px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.hero-copy::before{content:"";position:absolute;width:420px;height:420px;right:-160px;top:-180px;border-radius:50%;background:var(--grad);opacity:.18;filter:blur(10px)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--brand-3);background:color-mix(in srgb,var(--brand-3) 12%,transparent);border:1px solid color-mix(in srgb,var(--brand-3) 35%,transparent);padding:5px 11px;border-radius:999px}
+.eyebrow .pulse{width:8px;height:8px;border-radius:50%;background:var(--brand-3);box-shadow:0 0 0 0 var(--brand-3);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--brand-3) 70%,transparent)}100%{box-shadow:0 0 0 12px transparent}}
+.hero h2{font-size:clamp(28px,4vw,44px);line-height:1.08;margin:16px 0 12px;letter-spacing:-.025em;font-weight:800}
+.hero h2 .grad{background:linear-gradient(90deg,var(--brand-3),var(--brand-1),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p.lead{color:var(--muted);font-size:16px;max-width:560px;margin:0 0 22px}
+.feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}
+.feat{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line)}
+.feat .fi{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:none;color:#fff}
+.feat b{display:block;font-size:13.5px}
+.feat span{font-size:12.5px;color:var(--muted)}
+
+.drop{
+  border-radius:24px;border:2px dashed color-mix(in srgb,var(--brand-1) 45%,var(--line));
+  background:
+    radial-gradient(400px 220px at 50% 0%,color-mix(in srgb,var(--brand-1) 16%,transparent),transparent 70%),
+    var(--panel);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:40px 22px;cursor:pointer;transition:transform .2s,border-color .2s,box-shadow .2s;min-height:340px;box-shadow:var(--shadow)
+}
+.drop:hover,.drop.over{border-color:var(--brand-2);transform:translateY(-2px);box-shadow:0 30px 60px -25px rgba(139,92,246,.6)}
+.drop.over{border-style:solid}
+.drop-ico{width:92px;height:92px;border-radius:28px;background:var(--grad);display:grid;place-items:center;color:#fff;margin-bottom:18px;animation:float 3.2s ease-in-out infinite;box-shadow:0 20px 40px -14px rgba(99,102,241,.9)}
+@keyframes float{50%{transform:translateY(-10px)}}
+.drop b{font-size:20px;margin-bottom:6px}
+.drop .muted{max-width:340px}
+.drop .row{margin-top:18px;justify-content:center}
+.fileinfo{margin-top:12px;font-size:13px;color:var(--muted)}
+.fileinfo .err{color:var(--danger)}
+
+/* ---------- KPIs ---------- */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:18px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{position:relative;overflow:hidden;padding:16px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);animation:rise .5s both}
+.kpi:nth-child(2){animation-delay:.05s}.kpi:nth-child(3){animation-delay:.1s}.kpi:nth-child(4){animation-delay:.15s}.kpi:nth-child(5){animation-delay:.2s}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+.kpi::after{content:"";position:absolute;inset:auto -30px -50px auto;width:120px;height:120px;border-radius:50%;background:var(--k);opacity:.18;filter:blur(4px)}
+.kpi .ki{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;background:var(--k)}
+.kpi .n{font-size:28px;font-weight:800;margin-top:10px;letter-spacing:-.02em}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+
+.alert{margin-top:14px;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--warn) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);color:var(--warn);font-size:13.5px}
+
+/* ---------- Barra de herramientas ---------- */
+.toolbar{margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--line)}
+.search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line)}
+.search:focus-within{border-color:var(--brand-1);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-1) 25%,transparent)}
+.search input{flex:1;border:0;background:transparent;color:var(--ink);font:inherit;padding:10px 0;outline:none;min-width:0}
+.seg{display:inline-flex;padding:4px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:6px 11px;border-radius:9px;font-weight:700;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--grad);color:#fff;box-shadow:0 6px 14px -6px rgba(99,102,241,.9)}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;user-select:none}
+.switch input{display:none}
+.switch .t{width:38px;height:22px;border-radius:999px;background:var(--panel-3);border:1px solid var(--line);position:relative;transition:.2s}
+.switch .t::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:.2s}
+.switch input:checked + .t{background:var(--grad);border-color:transparent}
+.switch input:checked + .t::after{left:18px;background:#fff}
+
+.progress{display:flex;align-items:center;gap:10px;min-width:240px;flex:1}
+.progress .bar{flex:1;height:10px;border-radius:999px;background:var(--panel-3);overflow:hidden}
+.progress .fill{height:100%;width:0;background:linear-gradient(90deg,var(--ok),var(--brand-3));border-radius:999px;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.progress span{font-size:12.5px;font-weight:700;white-space:nowrap}
+
+/* ---------- Distribución principal ---------- */
+.main{display:grid;grid-template-columns:430px 1fr;gap:16px;margin-top:16px;align-items:start}
+@media (max-width:1050px){.main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.list-panel{padding:12px;max-height:calc(100vh - 120px);overflow:auto;position:sticky;top:96px}
+@media (max-width:1050px){.list-panel{position:static;max-height:none}}
+.list-head{display:flex;justify-content:space-between;align-items:center;padding:4px 4px 10px;font-size:12.5px;color:var(--muted);font-weight:600}
+.routes{display:flex;flex-direction:column;gap:10px}
+.route{position:relative;border-radius:16px;background:var(--panel-2);border:1px solid var(--line);padding:12px 12px 12px 18px;overflow:hidden;transition:border-color .2s,transform .2s;animation:rise .35s both}
+.route::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--rc)}
+.route:hover{border-color:color-mix(in srgb,var(--rc) 60%,var(--line));transform:translateX(2px)}
+.route.sel{border-color:var(--rc);box-shadow:0 0 0 3px color-mix(in srgb,var(--rc) 22%,transparent)}
+.route-top{display:flex;align-items:center;gap:10px}
+.route .name{font-weight:800;font-size:16px;letter-spacing:.01em}
+.route .veh{font-size:12px;color:var(--muted);font-weight:600}
+.route .tot{margin-left:auto;text-align:right;font-size:12px;color:var(--muted)}
+.route .tot b{display:block;font-size:16px;color:var(--ink)}
+.trips{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.trip{display:flex;align-items:center;gap:10px;padding:7px 8px 7px 10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:.15s}
+.trip:hover{border-color:var(--tc)}
+.trip.active{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 14%,var(--panel));box-shadow:inset 3px 0 0 var(--tc)}
+.trip .badge{font-size:11.5px;font-weight:800;color:#fff;background:var(--tc);padding:3px 8px;border-radius:8px;white-space:nowrap}
+.trip .meta{font-size:12.5px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.trip .meta b{color:var(--ink)}
+.trip .dl{margin-left:auto;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:7px 11px;font-weight:800;font-size:12.5px;color:#fff;background:var(--grad);box-shadow:0 6px 14px -6px rgba(99,102,241,.9);transition:transform .15s}
+.trip .dl:hover{transform:scale(1.05)}
+.trip.done .dl{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok);box-shadow:none;border:1px solid color-mix(in srgb,var(--ok) 50%,transparent)}
+.empty{padding:30px 10px;text-align:center;color:var(--muted)}
+
+/* ---------- Panel de detalle con mapa ---------- */
+.detail{padding:14px;display:flex;flex-direction:column;gap:12px}
+.detail-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.detail-head h3{margin:0;font-size:22px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.detail-head h3 .sw{width:14px;height:14px;border-radius:5px;background:var(--tc,var(--brand-1))}
+.detail-head .sub{color:var(--muted);font-size:13px}
+.detail-head .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stat{padding:10px 12px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line)}
+.stat .v{font-size:18px;font-weight:800}
+.stat .k{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.mapbox{position:relative;height:clamp(380px,58vh,640px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--panel-2)}
+#map{position:absolute;inset:0}
+.map-tools{position:absolute;top:12px;right:12px;z-index:500;display:flex;flex-direction:column;gap:8px}
+.map-tools .seg{background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(8px)}
+.legend{position:absolute;left:12px;bottom:12px;z-index:500;display:flex;gap:10px;flex-wrap:wrap;font-size:12px;font-weight:700;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--panel) 88%,transparent);backdrop-filter:blur(8px);border:1px solid var(--line)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.fallback{position:absolute;inset:0;display:grid;place-items:center}
+.fallback svg{width:100%;height:100%}
+
+/* Marcadores numerados */
+.pin{width:28px;height:28px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);background:var(--c);border:2px solid #fff;box-shadow:0 6px 14px -4px rgba(0,0,0,.6);display:grid;place-items:center;transition:transform .2s}
+.pin span{transform:rotate(45deg);color:#fff;font:800 11px/1 "Plus Jakarta Sans",system-ui,sans-serif}
+.pin.start{--c:#22c55e!important}
+.pin.end{--c:#f43f5e!important}
+.pin.hl{transform:rotate(-45deg) scale(1.45);z-index:999;box-shadow:0 0 0 6px color-mix(in srgb,var(--c) 35%,transparent),0 8px 18px -4px rgba(0,0,0,.6)}
+.ruta-anim{stroke-dasharray:12 10;animation:dash 1s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-22}}
+
+/* Popups de Leaflet */
+.leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--ink)!important;border-radius:14px!important;border:1px solid var(--line);box-shadow:var(--shadow)!important}
+.leaflet-popup-tip{background:var(--panel)!important}
+.leaflet-popup-content{margin:12px 14px!important;font:13px/1.45 "Plus Jakarta Sans",system-ui,sans-serif!important;min-width:220px}
+.pop h4{margin:0 0 2px;font-size:14.5px}
+.pop .sq{display:inline-block;font-size:11px;font-weight:800;color:#fff;padding:2px 7px;border-radius:7px;margin-bottom:6px}
+.pop table{border-collapse:collapse;width:100%;margin-top:6px}
+.pop td{padding:2px 0;font-size:12.5px;vertical-align:top}
+.pop td:first-child{color:var(--muted);padding-right:10px;white-space:nowrap}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted)!important}
+.leaflet-control-attribution{font-size:10px!important}
+.leaflet-bar a{background:var(--panel)!important;color:var(--ink)!important;border-color:var(--line)!important}
+
+/* Lista de clientes del viaje */
+.clients{max-height:330px;overflow:auto;border-radius:14px;border:1px solid var(--line)}
+.client{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
+.client:last-child{border-bottom:0}
+.client:hover,.client.hl{background:color-mix(in srgb,var(--tc) 12%,transparent)}
+.client .num{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:12.5px;color:#fff;background:var(--tc)}
+.client .num.start{background:#22c55e}.client .num.end{background:#f43f5e}
+.client .nm{font-weight:700;font-size:13.5px}
+.client .ad{font-size:12px;color:var(--muted)}
+.client .hr{text-align:right;font-size:12px;color:var(--muted)}
+.client .hr b{display:block;color:var(--ink);font-size:13px}
+
+/* Columnas detectadas */
+details.cols{margin-top:14px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--line);padding:12px 14px}
+details.cols summary{cursor:pointer;font-weight:700;font-size:14px}
+.grid-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+select{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.muted{color:var(--muted);font-size:13px}
+
+/* Aviso flotante y confeti */
+.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,20px);z-index:3000;display:flex;align-items:center;gap:10px;background:var(--panel);color:var(--ink);border:1px solid var(--line);padding:11px 16px;border-radius:14px;font-size:14px;font-weight:600;box-shadow:var(--shadow);opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px var(--ok)}
+.confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:4000;pointer-events:none;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.9}}
+
+footer{margin-top:28px;text-align:center;color:var(--muted);font-size:12.5px}
+footer b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--panel-3);border-radius:10px;border:2px solid var(--panel)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- Celular ---------- */
+@media (max-width:640px){
+  .topbar{position:static}
+  .top-actions{margin-left:0;width:100%}
+  #btnNew{flex:1;justify-content:center}
+  .hero-copy{padding:24px 18px}
+  .drop{min-height:240px}
+  .kpi .n{font-size:22px}
+  .detail-head .acts{margin-left:0;width:100%}
+  .detail-head .acts .btn.primary{flex:1;justify-content:center}
+}
+
+</style>
+</head>
+<body>
+
+<!-- Íconos -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 10l6 6 6-6"/><path d="M4 20h16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v10h16V10"/><path d="M3 4h18l-1.5 6h-15L3 4z"/><path d="M10 20v-5h4v5"/></symbol>
+  <symbol id="i-road" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21L9 3M19 21L15 3M12 5v2M12 11v2M12 17v2"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-focus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <!-- Barra superior -->
+  <header class="topbar">
+    <div class="logo"><svg class="i" style="width:24px;height:24px"><use href="#i-pin"/></svg></div>
+    <div>
+      <div class="brand">DABRIXO S.A.C.</div>
+      <h1 class="title">Generador de Mapas KML</h1>
+    </div>
+    <div class="top-actions">
+      <span class="chip-date" id="chipDate"><svg class="i"><use href="#i-calendar"/></svg><span id="sFecha">—</span></span>
+      <button class="btn hidden" id="btnNew"><svg class="i"><use href="#i-upload"/></svg>Importar otra hoja</button>
+      <button class="btn icon" id="btnTheme" title="Cambiar tema claro / oscuro"><svg class="i"><use href="#i-sun"/></svg></button>
+    </div>
+  </header>
+
+  <!-- Pantalla inicial -->
+  <section class="hero" id="hero">
+    <div class="hero-copy">
+      <span class="eyebrow"><span class="pulse"></span>Planificación de reparto · Rutas BK</span>
+      <h2>De la hoja de ruta al <span class="grad">mapa de cada viaje</span> en segundos</h2>
+      <p class="lead">Importa el Excel de la hoja de ruta y obtén un mapa KML por ruta y por viaje, listo para Google Earth o Google My Maps. Revisa cada recorrido en el mapa antes de descargarlo.</p>
+      <div class="row">
+        <button class="btn primary" id="btnPick"><svg class="i"><use href="#i-upload"/></svg>Importar hoja de ruta</button>
+        <button class="btn" id="btnDemo"><svg class="i"><use href="#i-play"/></svg>Ver demostración</button>
+      </div>
+      <div class="feats">
+        <div class="feat"><div class="fi" style="background:linear-gradient(135deg,#3b82f6,#22d3ee)"><svg class="i"><use href="#i-route"/></svg></div><div><b>Un mapa por viaje</b><span>Separado por ruta (BK…) y número de viaje</span></div></div>
+        <div class="feat"><div class="fi" style="background:linear-gradient(135deg,#8b5cf6,#d946ef)"><svg class="i"><use href="#i-pin"/></svg></div><div><b>Secuencia numerada</b><span>Clientes en orden de visita, con recorrido trazado</span></div></div>
+        <div class="feat"><div class="fi" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"><svg class="i"><use href="#i-layers"/></svg></div><div><b>Vista general</b><span>Todas las rutas del día en un solo mapa</span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="drop" id="drop">
+        <div class="drop-ico"><svg class="i" style="width:44px;height:44px"><use href="#i-upload"/></svg></div>
+        <b>Arrastra aquí la hoja de ruta</b>
+        <span class="muted">Excel (.xlsx, .xls) o .csv · o haz clic para seleccionarlo. Los datos se procesan solo en tu navegador.</span>
+        <input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv" class="hidden">
+      </div>
+      <div class="fileinfo" id="fileinfo"></div>
+    </div>
+  </section>
+
+  <!-- Aplicación -->
+  <section id="app" class="hidden">
+    <div class="kpis">
+      <div class="kpi" style="--k:linear-gradient(135deg,#3b82f6,#22d3ee)"><div class="ki"><svg class="i"><use href="#i-route"/></svg></div><div class="n mono" id="kRutas">0</div><div class="l">Rutas</div></div>
+      <div class="kpi" style="--k:linear-gradient(135deg,#8b5cf6,#d946ef)"><div class="ki"><svg class="i"><use href="#i-layers"/></svg></div><div class="n mono" id="kMapas">0</div><div class="l">Mapas (ruta + viaje)</div></div>
+      <div class="kpi" style="--k:linear-gradient(135deg,#22c55e,#14b8a6)"><div class="ki"><svg class="i"><use href="#i-store"/></svg></div><div class="n mono" id="kClientes">0</div><div class="l">Clientes</div></div>
+      <div class="kpi" style="--k:linear-gradient(135deg,#f59e0b,#ef4444)"><div class="ki"><svg class="i"><use href="#i-road"/></svg></div><div class="n mono" id="kKm">0</div><div class="l">Km planificados</div></div>
+      <div class="kpi" style="--k:linear-gradient(135deg,#ec4899,#8b5cf6)"><div class="ki"><svg class="i"><use href="#i-box"/></svg></div><div class="n mono" id="kCajas">0</div><div class="l">Cajas a entregar</div></div>
+    </div>
+    <div id="warn" class="alert hidden"></div>
+
+    <div class="toolbar">
+      <label class="search"><svg class="i" style="color:var(--muted)"><use href="#i-search"/></svg><input id="search" placeholder="Buscar ruta, placa o cliente…"></label>
+      <div class="seg" id="filter">
+        <button data-f="all" class="on">Todas</button>
+        <button data-f="multi">Varios viajes</button>
+        <button data-f="pending">Pendientes</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="optLine" checked><span class="t"></span>Recorrido</label>
+      <label class="switch"><input type="checkbox" id="optNum" checked><span class="t"></span>Numerar</label>
+      <div class="progress"><div class="bar"><div class="fill" id="pFill"></div></div><span id="dlCount">0 / 0</span></div>
+    </div>
+
+    <div class="main">
+      <aside class="panel list-panel">
+        <div class="list-head"><span id="listInfo">Rutas</span><span>Clic en un viaje para verlo</span></div>
+        <div class="routes" id="routes"></div>
+      </aside>
+
+      <section class="panel detail">
+        <div class="detail-head">
+          <div>
+            <h3 id="dTitle"><span class="sw"></span>Vista general</h3>
+            <div class="sub" id="dSub">Todas las rutas del día</div>
+          </div>
+          <div class="acts">
+            <button class="btn sm" id="btnFit" title="Centrar el mapa"><svg class="i"><use href="#i-focus"/></svg>Centrar</button>
+            <button class="btn sm" id="btnOverview"><svg class="i"><use href="#i-layers"/></svg>Vista general</button>
+            <button class="btn primary" id="btnDl"><svg class="i"><use href="#i-download"/></svg>Descargar KML</button>
+          </div>
+        </div>
+        <div class="stats" id="dStats"></div>
+        <div class="mapbox">
+          <div id="map"></div>
+          <div class="fallback hidden" id="fallback"></div>
+          <div class="map-tools">
+            <div class="seg" id="baseSel">
+              <button data-b="map" class="on">Mapa</button>
+              <button data-b="sat">Satélite</button>
+            </div>
+          </div>
+          <div class="legend" id="legend"></div>
+        </div>
+        <div class="clients" id="clients"></div>
+      </section>
+    </div>
+
+    <details class="cols" id="mapDetails">
+      <summary>Columnas detectadas en la hoja (cámbialas si algo no cuadra)</summary>
+      <div class="grid-map" id="mapping"></div>
+      <div class="row" style="margin-top:12px"><button class="btn sm" id="reprocess">Aplicar columnas</button></div>
+    </details>
+  </section>
+
+  <footer>Desarrollado para <b>DABRIXO S.A.C.</b> · Mapas compatibles con Google Earth y Google My Maps</footer>
+</div>
+
+<div class="toast" id="toast"><span class="dot"></span><span id="toastMsg"></span></div>
+
+<!-- Scripts del programa (el orden importa) -->
+<script>
+/* =========================================================
+ * config.js
+ * Configuración y estado global del programa
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+// Atajo para obtener elementos por id
+const $ = id => document.getElementById(id);
+
+// Colores por número de viaje (Viaje 1 azul, Viaje 2 naranja, Viaje 3 verde...)
+const TRIP_COLORS = ['#3b82f6','#f97316','#10b981','#a855f7','#ef4444','#06b6d4','#eab308','#ec4899'];
+const tripColor = v => TRIP_COLORS[(Math.max(1, parseInt(v,10)||1) - 1) % TRIP_COLORS.length];
+
+// Color propio de cada ruta (para la vista general): tonos repartidos con el "ángulo dorado"
+const routeColor = i => `hsl(${Math.round((i*137.508)%360)} 85% 58%)`;
+
+// Estado de la aplicación
+let raw = null;        // {headers:[], rows:[[]]}
+let map = {};          // field -> column index
+let groups = [];       // [{ruta, viaje, vehiculo, fecha, points:[]}]
+let skipped = 0;
+let activeKey = null;
+const downloaded = new Set();
+let fileBase = 'Hoja_de_Ruta';
+let filtro = 'all';    // all | multi | pending
+let esDemo = false;
+
+// Campos que se buscan en la hoja de ruta: [clave, etiqueta, obligatorio]
+const FIELDS = [
+  ['ruta','Ruta',true], ['viaje','Viaje',true], ['sec','Secuencia',false],
+  ['lat','Latitud',true], ['lon','Longitud',true],
+  ['cliente','Cliente',false], ['codigo','Código cliente',false], ['direccion','Dirección',false],
+  ['distrito','Distrito',false], ['vehiculo','Vehículo',false], ['fecha','Fecha',false],
+  ['tipo','Tipo cliente',false], ['llega','Llega',false], ['sale','Sale',false],
+  ['entrega','Entrega',false], ['recojo','Recojo',false], ['abre','Abre',false], ['cierra','Cierra',false], ['dist','Dist (Km)',false]
+];
+
+</script>
+<script>
+/* =========================================================
+ * utilidades.js
+ * Funciones de ayuda: texto, números, fechas, avisos y descargas
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+const norm = s => String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const toNum = v => { if (typeof v === 'number') return v; if (v==null) return NaN; const s=String(v).trim().replace(',', '.'); return s===''?NaN:Number(s); };
+function toast(msg){ const t=$('toast'); $('toastMsg').textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400); }
+
+// Formato de números al estilo Perú (1,946 · 15.3)
+const fmtNum = (n, dec=0) => Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+
+// Contador animado para los indicadores
+function animateCount(el, to, dec=0){
+  const from = 0, t0 = performance.now(), dur = 900;
+  const step = t => { const k=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-k,3); el.textContent = fmtNum(from+(to-from)*e, dec); if (k<1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+// Distancia en km entre dos puntos (fórmula de Haversine)
+function haversine(a, b){
+  const R=6371, r=x=>x*Math.PI/180, dLa=r(b.lat-a.lat), dLo=r(b.lon-a.lon);
+  const h=Math.sin(dLa/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLo/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+// Lluvia de confeti al completar todas las descargas
+function confetti(){
+  const colors=['#3b82f6','#8b5cf6','#22d3ee','#fbbf24','#f43f5e','#22c55e'];
+  for (let i=0;i<90;i++){
+    const d=document.createElement('div'); d.className='confetti';
+    d.style.left=Math.random()*100+'vw'; d.style.background=colors[i%colors.length];
+    d.style.animationDuration=(1.8+Math.random()*1.8)+'s'; d.style.animationDelay=(Math.random()*.4)+'s';
+    d.style.transform=`rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(d); setTimeout(()=>d.remove(),4200);
+  }
+}
+
+function colLetter(i){ let s=''; i++; while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26);} return s; }
+
+function fmtVal(v){
+  if (v==null) return '';
+  if (v instanceof Date){
+    if (v.getFullYear()<1901){ return pad(v.getHours())+':'+pad(v.getMinutes()); }
+    return pad(v.getDate())+'/'+pad(v.getMonth()+1)+'/'+v.getFullYear();
+  }
+  return String(v).trim();
+}
+function fmtTime(v){
+  if (typeof v==='number' && v>=0 && v<1){ const m=Math.round(v*1440); return pad(Math.floor(m/60))+':'+pad(m%60); }
+  return fmtVal(v);
+}
+const pad = n => String(n).padStart(2,'0');
+
+function downloadBlob(content, name){
+  const blob = content instanceof Blob ? content : new Blob([content], {type:'application/vnd.google-earth.kml+xml'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  toast('Descargado: '+name);
+}
+
+// Desplaza un contenedor con scroll para mostrar un elemento, sin mover la página
+function scrollDentro(cont, el){
+  if (!cont || !el || cont.scrollHeight <= cont.clientHeight) return;
+  const r = el.getBoundingClientRect(), c = cont.getBoundingClientRect();
+  if (r.top < c.top || r.bottom > c.bottom) cont.scrollTo({top: cont.scrollTop + (r.top - c.top) - c.height/3, behavior:'smooth'});
+}
+
+</script>
+<script>
+/* =========================================================
+ * lector-excel.js
+ * Lectura del Excel y detección automática de columnas
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+function load(file){
+  if (typeof XLSX === 'undefined'){ alertBox('No se pudo cargar el lector de Excel (requiere internet la primera vez).'); return; }
+  fileBase = file.name.replace(/\.[^.]+$/,'').replace(/[^\w\-]+/g,'_');
+  const rd = new FileReader();
+  rd.onload = e => {
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      // Elegir la hoja que tenga encabezado "Ruta"
+      let best=null;
+      for (const name of wb.SheetNames){
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1, raw:true, defval:null});
+        const hi = rows.findIndex((r,i)=> i<30 && r && r.some(c=>norm(c)==='ruta'));
+        if (hi>=0){ best={name, rows, hi}; break; }
+        if (!best) best={name, rows, hi:0};
+      }
+      const headers = (best.rows[best.hi]||[]).map(h=>h==null?'':String(h));
+      const rows = best.rows.slice(best.hi+1).filter(r => r && r.some(c=>c!==null && c!==''));
+      const width = Math.max(headers.length, ...rows.map(r=>r.length));
+      while (headers.length < width) headers.push('Col '+(headers.length+1));
+      esDemo = false;
+      iniciarConDatos({headers, rows}, `${file.name} · hoja "${best.name}" · ${rows.length} filas`);
+    }catch(err){ console.error(err); alertBox('No se pudo leer el archivo: '+err.message); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+function alertBox(msg){ $('fileinfo').innerHTML = '<span class="err">'+esc(msg)+'</span>'; toast(msg); }
+
+// Punto de entrada común para Excel importado y datos de demostración
+function iniciarConDatos(datos, info){
+  raw = datos;
+  $('fileinfo').textContent = info;
+  map = detect(raw);
+  buildMapping();
+  process();
+  mostrarApp();
+}
+
+/* ---------- Detección de columnas ---------- */
+function detect({headers, rows}){
+  const H = headers.map(norm);
+  const m = {};
+  const find = (...tests) => { for (const t of tests){ const i = H.findIndex(h => typeof t==='string' ? h===t : t.test(h)); if (i>=0) return i; } return -1; };
+  const sample = rows.slice(0, 400);
+  const numericShare = i => { let n=0,t=0; for (const r of sample){ const v=r[i]; if (v===null||v==='') continue; t++; if (!isNaN(toNum(v))) n++; } return t? n/t : 0; };
+  const filled = i => sample.filter(r=>r[i]!==null && r[i]!=='').length;
+
+  m.ruta = find('ruta', /^ruta/, /route/);
+  m.viaje = find('viaje', /viaje/, /trip/);
+  // Secuencia: entre las columnas "Sec" elige la que tenga datos
+  const secCols = H.map((h,i)=>/^sec/.test(h)||/secuencia|orden/.test(h)?i:-1).filter(i=>i>=0);
+  m.sec = secCols.sort((a,b)=>filled(b)-filled(a))[0] ?? -1;
+  if (m.sec>=0 && filled(m.sec)===0) m.sec=-1;
+
+  // Coordenadas: por nombre y validando valores; si no, por valores
+  const coordStats = i => {
+    let t=0,ok=0,frac=0,sum=0;
+    for (const r of sample){ const v=r[i]; if (v===null||v==='') continue; t++; const n=toNum(v); if (!isNaN(n) && Math.abs(n)<=180 && n!==0){ ok++; sum+=Math.abs(n); if (n%1!==0) frac++; } }
+    return {t, ok, share: t?ok/t:0, frac: ok?frac/ok:0, mean: ok?sum/ok:0};
+  };
+  let lat = find('latitud','lat','latitude','y', /latitud/);
+  let lon = find('longitud','lon','lng','long','longitude','x', /longitud/);
+  const valid = i => { if (i<0) return false; const s=coordStats(i); return s.share>0.8 && s.frac>0.8; };
+  if (!(valid(lat) && valid(lon) && coordStats(lat).mean<=90)){
+    const cands = H.map((_,i)=>i).filter(i => { const s=coordStats(i); return s.t>0 && s.share>0.9 && s.frac>0.9 && s.mean>0.5; });
+    // preferir par contiguo
+    let pair=null;
+    for (let k=0;k<cands.length-1;k++) if (cands[k+1]===cands[k]+1){ pair=[cands[k],cands[k+1]]; }
+    if (!pair && cands.length>=2) pair = cands.slice(-2);
+    if (pair){
+      const [a,b] = pair, ma=coordStats(a).mean, mb=coordStats(b).mean;
+      // la de mayor valor absoluto es longitud (válido para Perú), la latitud debe estar dentro de ±90
+      if (ma>=mb){ lon=a; lat=b; } else { lon=b; lat=a; }
+      if (coordStats(lat).mean>90){ const t=lat; lat=lon; lon=t; }
+    }
+  }
+  m.lat = lat; m.lon = lon;
+
+  m.cliente = find('cliente','nombre cliente','razon social',/cliente/);
+  if (m.cliente>=0 && /tipo/.test(H[m.cliente])) m.cliente = find('cliente');
+  m.codigo = find('codigo','cod cliente','idcli',/codigo/);
+  m.direccion = find('direccion',/direcc/);
+  m.vehiculo = find('vehiculo','placa',/vehic/);
+  m.fecha = find('fecha',/fecha/);
+  m.tipo = find('tipo cliente',/tipo/);
+  m.llega = find('llega'); m.sale = find('sale');
+  m.entrega = find('entrega'); m.recojo = find('recojo');
+  m.abre = find('abre'); m.cierra = find('cierra');
+  m.dist = find('dist (km)', /^dist\b|km/);
+  m.distrito = find('distrito', /distrito/);
+  if (m.distrito<0){
+    // columna de texto pegada a las coordenadas (en la hoja de ruta Backus viene rotulada como "SKU 1")
+    const first = Math.min(m.lat, m.lon) - 1;
+    if (first>=0 && numericShare(first)<0.2 && filled(first)>0 && !Object.values(m).includes(first)) m.distrito = first;
+  }
+  return m;
+}
+
+function buildMapping(){
+  const box = $('mapping'); box.innerHTML='';
+  const opts = '<option value="-1">— ninguna —</option>' + raw.headers.map((h,i)=>`<option value="${i}">${esc(colLetter(i))} · ${esc(h||'(sin título)')}</option>`).join('');
+  for (const [k,label,req] of FIELDS){
+    const l = document.createElement('label'); l.className='f';
+    l.innerHTML = `${esc(label)}${req?' *':''}<select data-k="${k}">${opts}</select>`;
+    l.querySelector('select').value = String(map[k] ?? -1);
+    box.appendChild(l);
+  }
+  const ok = map.ruta>=0 && map.viaje>=0 && map.lat>=0 && map.lon>=0;
+  $('mapDetails').open = !ok;
+}
+
+</script>
+<script>
+/* =========================================================
+ * procesamiento.js
+ * Agrupa los clientes por ruta y viaje, y ordena por secuencia
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+function process(){
+  const warn = [];
+  if (map.ruta<0) warn.push('No se encontró la columna "Ruta".');
+  if (map.viaje<0) warn.push('No se encontró la columna "Viaje" (se tomará todo como viaje 1).');
+  if (map.lat<0 || map.lon<0) warn.push('No se encontraron las columnas de coordenadas. Indícalas en "Columnas detectadas".');
+  const get = (r,k) => map[k]>=0 ? r[map[k]] : null;
+  const byKey = new Map(); skipped = 0; const skippedList=[];
+  raw.rows.forEach((r, idx) => {
+    const ruta = fmtVal(get(r,'ruta'));
+    if (!ruta) return;
+    const viaje = map.viaje>=0 ? (fmtVal(get(r,'viaje')) || '1') : '1';
+    const lat = toNum(get(r,'lat')), lon = toNum(get(r,'lon'));
+    const okc = !isNaN(lat) && !isNaN(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180 && !(lat===0 && lon===0);
+    if (!okc){ skipped++; if (skippedList.length<6) skippedList.push(`${ruta} V${viaje} · ${fmtVal(get(r,'cliente'))||('fila '+(idx+2))}`); return; }
+    const key = ruta+'|'+viaje;
+    if (!byKey.has(key)) byKey.set(key, {key, ruta, viaje, vehiculo: fmtVal(get(r,'vehiculo')), fecha: fmtVal(get(r,'fecha')), points: []});
+    const g = byKey.get(key);
+    if (!g.vehiculo) g.vehiculo = fmtVal(get(r,'vehiculo'));
+    const secN = toNum(get(r,'sec'));
+    g.points.push({
+      order: idx, sec: isNaN(secN)?null:secN, lat, lon,
+      cliente: fmtVal(get(r,'cliente')), codigo: fmtVal(get(r,'codigo')), direccion: fmtVal(get(r,'direccion')),
+      distrito: fmtVal(get(r,'distrito')), tipo: fmtVal(get(r,'tipo')),
+      llega: fmtTime(get(r,'llega')), sale: fmtTime(get(r,'sale')),
+      abre: fmtTime(get(r,'abre')), cierra: fmtTime(get(r,'cierra')),
+      entrega: fmtVal(get(r,'entrega')), recojo: fmtVal(get(r,'recojo')), dist: fmtVal(get(r,'dist'))
+    });
+  });
+  groups = [...byKey.values()];
+  groups.forEach(g => {
+    g.points.sort((a,b) => (a.sec??1e9)-(b.sec??1e9) || a.order-b.order);
+    g.points.forEach((p,i) => p.n = p.sec ?? (i+1));
+  });
+  const cmp = (a,b) => a.localeCompare(b, 'es', {numeric:true});
+  groups.sort((a,b) => cmp(a.ruta,b.ruta) || cmp(a.viaje,b.viaje));
+  if (skipped) warn.push(`${skipped} cliente(s) sin coordenadas válidas no se incluyeron` + (skippedList.length? ': '+skippedList.join('; ')+(skipped>skippedList.length?'…':'') : '.'));
+
+  // Indicadores por viaje: km, cajas, primera llegada y última salida
+  const rutas = [...new Set(groups.map(g=>g.ruta))];
+  groups.forEach(g => {
+    const kmHoja = g.points.reduce((s,p)=>{ const n=toNum(p.dist); return s+(isNaN(n)?0:n); },0);
+    let kmLinea = 0; for (let i=1;i<g.points.length;i++) kmLinea += haversine(g.points[i-1], g.points[i]);
+    g.km = kmHoja>0 ? kmHoja : kmLinea;
+    g.cajas = g.points.reduce((s,p)=>{ const n=toNum(p.entrega); return s+(isNaN(n)?0:n); },0);
+    g.inicio = g.points[0] ? (g.points[0].llega||'') : '';
+    g.fin = g.points.length ? (g.points[g.points.length-1].sale||'') : '';
+    g.rutaIdx = rutas.indexOf(g.ruta);
+  });
+
+  $('warn').innerHTML = warn.map(esc).join('<br>'); $('warn').classList.toggle('hidden', !warn.length);
+  downloaded.clear();
+  activeKey = null;          // empezar en la vista general
+  renderTodo();
+}
+
+
+</script>
+<script>
+/* =========================================================
+ * kml.js
+ * Construcción del archivo KML (puntos, estilos y recorrido)
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+function kmlColor(hex, alpha='ff'){ const h=hex.replace('#',''); return alpha+h.slice(4,6)+h.slice(2,4)+h.slice(0,2); }
+function fileName(g){ return `${g.ruta}_Viaje${g.viaje}.kml`.replace(/[\\/:*?"<>|\s]+/g,'_'); }
+
+function kmlFor(gs, docName){
+  const line = $('optLine').checked, num = $('optNum').checked;
+  const viajes = [...new Set(gs.map(g=>g.viaje))];
+  let styles = `<Style id="inicio"><IconStyle><color>ff4ca316</color><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/grn-circle.png</href></Icon></IconStyle><LabelStyle><scale>0.8</scale></LabelStyle></Style>
+<Style id="fin"><IconStyle><color>ff2626dc</color><scale>1.2</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/red-circle.png</href></Icon></IconStyle><LabelStyle><scale>0.8</scale></LabelStyle></Style>`;
+  for (const v of viajes){
+    const c = tripColor(v);
+    styles += `
+<Style id="pt_v${esc(v)}"><IconStyle><color>${kmlColor(c)}</color><scale>1</scale><Icon><href>http://maps.google.com/mapfiles/kml/paddle/wht-blank.png</href></Icon></IconStyle><LabelStyle><scale>0.75</scale></LabelStyle></Style>
+<Style id="ln_v${esc(v)}"><LineStyle><color>${kmlColor(c,'cc')}</color><width>3</width></LineStyle></Style>`;
+  }
+  const folder = g => {
+    const n = g.points.length;
+    const pm = g.points.map((p,i) => {
+      const style = i===0 ? 'inicio' : (i===n-1 && n>1 ? 'fin' : 'pt_v'+g.viaje);
+      const name = (num ? p.n+'. ' : '') + (p.cliente || p.codigo || 'Cliente');
+      const rows = [['Secuencia',p.n],['Código',p.codigo],['Cliente',p.cliente],['Tipo',p.tipo],['Dirección',p.direccion],['Distrito',p.distrito],
+        ['Llega',p.llega],['Sale',p.sale],['Horario',p.abre&&p.cierra?p.abre+' - '+p.cierra:''],['Entrega',p.entrega],['Recojo',p.recojo],['Dist (Km)',p.dist],
+        ['Ruta',g.ruta],['Viaje',g.viaje],['Vehículo',g.vehiculo]].filter(r=>r[1]!==''&&r[1]!=null);
+      const ext = rows.map(([k,v])=>`<Data name="${esc(k)}"><value>${esc(v)}</value></Data>`).join('');
+      return `<Placemark><name>${esc(name)}</name><styleUrl>#${style}</styleUrl><ExtendedData>${ext}</ExtendedData><Point><coordinates>${p.lon},${p.lat},0</coordinates></Point></Placemark>`;
+    }).join('\n');
+    const ln = line && n>1 ? `\n<Placemark><name>Recorrido ${esc(g.ruta)} V${esc(g.viaje)}</name><styleUrl>#ln_v${esc(g.viaje)}</styleUrl><LineString><tessellate>1</tessellate><coordinates>${g.points.map(p=>p.lon+','+p.lat+',0').join(' ')}</coordinates></LineString></Placemark>` : '';
+    return `<Folder><name>${esc(g.ruta)} · Viaje ${esc(g.viaje)}</name><description>${esc('DABRIXO S.A.C. · '+(g.vehiculo?g.vehiculo+' · ':'')+n+' clientes'+(g.fecha?' · '+g.fecha:''))}</description>\n${pm}${ln}\n</Folder>`;
+  };
+  // Si hay varias rutas, anidar por ruta
+  let body;
+  const rutas = [...new Set(gs.map(g=>g.ruta))];
+  if (rutas.length>1) body = rutas.map(r => `<Folder><name>${esc(r)}</name>\n${gs.filter(g=>g.ruta===r).map(folder).join('\n')}\n</Folder>`).join('\n');
+  else body = gs.map(folder).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>${esc(docName)}</name>
+${styles}
+${body}
+</Document>
+</kml>`;
+}
+
+
+</script>
+<script>
+/* =========================================================
+ * mapa.js
+ * Mapa interactivo (Leaflet): viaje seleccionado y vista general.
+ * Si Leaflet no carga (sin internet) se dibuja un croquis SVG.
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+let lmap = null;          // instancia del mapa Leaflet
+let capaBase = null;      // capa de fondo (calles o satélite)
+let capaDatos = null;     // marcadores y líneas actuales
+let marcadores = [];      // marcadores del viaje mostrado (para resaltar)
+let limites = null;       // área a centrar
+let baseActual = 'map';   // map | sat
+
+const TILES = {
+  dark:  ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+  light: ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+  sat:   ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 'Imágenes &copy; Esri']
+};
+const hayLeaflet = () => typeof L !== 'undefined';
+
+function iniciarMapa(){
+  if (!hayLeaflet()){ $('map').classList.add('hidden'); $('fallback').classList.remove('hidden'); $('baseSel').classList.add('hidden'); return; }
+  if (lmap) return;
+  lmap = L.map('map', {zoomControl:true, preferCanvas:false}).setView([-11.95,-77.06], 11);
+  ponerBase();
+}
+
+function ponerBase(){
+  if (!lmap) return;
+  if (capaBase) lmap.removeLayer(capaBase);
+  const tema = document.documentElement.dataset.theme;
+  const t = baseActual==='sat' ? TILES.sat : (tema==='light' ? TILES.light : TILES.dark);
+  capaBase = L.tileLayer(t[0], {attribution:t[1], maxZoom:19, subdomains:'abcd'}).addTo(lmap);
+}
+
+function limpiarMapa(){
+  marcadores = [];
+  if (capaDatos && lmap) lmap.removeLayer(capaDatos);
+  capaDatos = lmap ? L.layerGroup().addTo(lmap) : null;
+}
+
+function centrar(){
+  if (lmap && limites && limites.isValid()) lmap.fitBounds(limites, {padding:[50,50], maxZoom:16});
+}
+
+/* ---------- Contenido de la ventana emergente de cada cliente ---------- */
+function popupHtml(g, p, i){
+  const n = g.points.length;
+  const color = i===0 ? '#22c55e' : (i===n-1 ? '#f43f5e' : tripColor(g.viaje));
+  const etiqueta = i===0 ? 'Primer cliente' : (i===n-1 ? 'Último cliente' : 'Cliente');
+  const filas = [['Código',p.codigo],['Tipo',p.tipo],['Dirección',p.direccion],['Distrito',p.distrito],
+    ['Llega / Sale',[p.llega,p.sale].filter(Boolean).join(' – ')],['Horario',p.abre&&p.cierra?p.abre+' – '+p.cierra:''],
+    ['Entrega',p.entrega?p.entrega+' cajas':''],['Recojo',p.recojo?p.recojo+' cajas':''],['Ruta',g.ruta+' · Viaje '+g.viaje]]
+    .filter(f=>f[1]);
+  return `<div class="pop"><span class="sq" style="background:${color}">#${esc(p.n)} · ${etiqueta}</span>
+    <h4>${esc(p.cliente||'Cliente')}</h4>
+    <table>${filas.map(f=>`<tr><td>${esc(f[0])}</td><td>${esc(f[1])}</td></tr>`).join('')}</table></div>`;
+}
+
+/* ---------- Un viaje ---------- */
+function dibujarViaje(g){
+  const linea = $('optLine').checked;
+  const color = tripColor(g.viaje), n = g.points.length;
+  $('legend').innerHTML = `<span><i style="background:#22c55e"></i>Inicio</span><span><i style="background:${color}"></i>Clientes</span><span><i style="background:#f43f5e"></i>Último</span>`;
+  if (!lmap){ croquis([g], true); return; }
+  limpiarMapa();
+  const latlngs = g.points.map(p=>[p.lat,p.lon]);
+  if (linea && n>1){
+    L.polyline(latlngs, {color, weight:9, opacity:.22, lineJoin:'round'}).addTo(capaDatos);
+    L.polyline(latlngs, {color, weight:3.5, opacity:.95, className:'ruta-anim', lineJoin:'round'}).addTo(capaDatos);
+  }
+  g.points.forEach((p,i) => {
+    const cls = i===0 ? 'start' : (i===n-1 && n>1 ? 'end' : '');
+    const icon = L.divIcon({className:'', html:`<div class="pin ${cls}" style="--c:${color}"><span>${esc(p.n)}</span></div>`, iconSize:[28,28], iconAnchor:[14,34], popupAnchor:[0,-30]});
+    const m = L.marker([p.lat,p.lon], {icon, zIndexOffset: cls?1000:0, riseOnHover:true}).bindPopup(popupHtml(g,p,i), {maxWidth:300});
+    m.on('mouseover', () => resaltarCliente(i, true));
+    m.on('mouseout',  () => resaltarCliente(i, false));
+    m.on('click',     () => resaltarCliente(i, true, true));
+    m.addTo(capaDatos); marcadores.push(m);
+  });
+  limites = L.latLngBounds(latlngs);
+  centrar();
+}
+
+/* ---------- Todas las rutas ---------- */
+function dibujarGeneral(gs){
+  const nR = new Set(gs.map(g=>g.ruta)).size;
+  $('legend').innerHTML = `<span>${nR} rutas · ${gs.length} viajes</span><span class="muted" style="font-weight:600">Clic en una línea para abrir el viaje</span>`;
+  if (!lmap){ croquis(gs, false); return; }
+  limpiarMapa();
+  const lienzo = L.canvas({padding:.5});
+  const todos = [];
+  gs.forEach(g => {
+    const color = routeColor(g.rutaIdx);
+    const ll = g.points.map(p=>[p.lat,p.lon]); todos.push(...ll);
+    g.points.forEach(p => L.circleMarker([p.lat,p.lon], {renderer:lienzo, radius:3, color, weight:1, fillColor:color, fillOpacity:.9}).addTo(capaDatos));
+    if (ll.length>1){
+      const pl = L.polyline(ll, {color, weight:3, opacity:.8}).addTo(capaDatos);
+      pl.bindTooltip(`<b>${esc(g.ruta)}</b> · Viaje ${esc(g.viaje)} · ${g.points.length} clientes`, {sticky:true});
+      pl.on('mouseover', () => { pl.setStyle({weight:7, opacity:1}); pl.bringToFront(); });
+      pl.on('mouseout',  () => pl.setStyle({weight:3, opacity:.8}));
+      pl.on('click',     () => seleccionarViaje(g.key));
+    }
+  });
+  limites = todos.length ? L.latLngBounds(todos) : null;
+  centrar();
+}
+
+/* ---------- Resaltar / enfocar un cliente ---------- */
+function resaltarCliente(i, on, desplazar){
+  const m = marcadores[i];
+  const pin = m && m.getElement() && m.getElement().querySelector('.pin');
+  if (pin) pin.classList.toggle('hl', on);
+  const fila = document.querySelector(`.client[data-i="${i}"]`);
+  if (fila){
+    fila.classList.toggle('hl', on);
+    if (on && desplazar) scrollDentro($('clients'), fila);
+  }
+  document.querySelectorAll(`#fallback circle[data-i="${i}"]`).forEach(c => c.setAttribute('r', on?8:c.dataset.r));
+}
+function enfocarCliente(i){
+  const m = marcadores[i];
+  if (!m || !lmap) return;
+  lmap.flyTo(m.getLatLng(), Math.max(lmap.getZoom(), 16), {duration:.8});
+  setTimeout(() => m.openPopup(), 650);
+}
+
+/* ---------- Croquis SVG de respaldo (sin conexión) ---------- */
+function croquis(gs, unViaje){
+  const W=900, H=520, P=30;
+  const pts = gs.flatMap(g=>g.points);
+  if (!pts.length){ $('fallback').innerHTML=''; return; }
+  const lats=pts.map(p=>p.lat), lons=pts.map(p=>p.lon);
+  const minLa=Math.min(...lats), maxLa=Math.max(...lats), minLo=Math.min(...lons), maxLo=Math.max(...lons);
+  const k = Math.cos((minLa+maxLa)/2*Math.PI/180);
+  const sx=(maxLo-minLo)*k||0.002, sy=(maxLa-minLa)||0.002, s=Math.min((W-2*P)/sx,(H-2*P)/sy);
+  const ox=(W-sx*s)/2, oy=(H-sy*s)/2;
+  const xy = p => [ (ox+(p.lon-minLo)*k*s).toFixed(1), (H-(oy+(p.lat-minLa)*s)).toFixed(1) ];
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`;
+  gs.forEach(g => {
+    const color = unViaje ? tripColor(g.viaje) : routeColor(g.rutaIdx);
+    const c = g.points.map(xy);
+    if ((!unViaje || $('optLine').checked) && c.length>1)
+      svg += `<polyline points="${c.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${color}" stroke-width="${unViaje?3:2}" stroke-opacity=".85" stroke-linejoin="round" ${unViaje?'class="ruta-anim"':`style="cursor:pointer" data-key="${esc(g.key)}"`}><title>${esc(g.ruta)} · Viaje ${esc(g.viaje)}</title></polyline>`;
+    c.forEach((p,i) => {
+      const n=g.points.length, f = unViaje ? (i===0?'#22c55e':(i===n-1?'#f43f5e':color)) : color, r = unViaje ? (i===0||i===n-1?7:5) : 2.5;
+      svg += `<circle cx="${p[0]}" cy="${p[1]}" r="${r}" data-r="${r}" ${unViaje?`data-i="${i}"`:''} fill="${f}" stroke="#fff" stroke-width="${unViaje?1.5:0}"><title>${esc(g.points[i].n+'. '+g.points[i].cliente)}</title></circle>`;
+    });
+  });
+  $('fallback').innerHTML = svg + '</svg>';
+}
+
+</script>
+<script>
+/* =========================================================
+ * interfaz.js
+ * Indicadores, lista de rutas, detalle del viaje y descargas
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+let celebrado = false;
+
+function mostrarApp(){
+  $('hero').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('btnNew').classList.remove('hidden');
+  iniciarMapa();
+  setTimeout(() => { if (lmap){ lmap.invalidateSize(); } renderDetail(); }, 60);
+}
+
+/* ---------- Todo de una vez (después de procesar) ---------- */
+function renderTodo(){
+  celebrado = false;
+  const total = (k) => groups.reduce((s,g)=>s+(g[k]||0),0);
+  animateCount($('kRutas'), new Set(groups.map(g=>g.ruta)).size);
+  animateCount($('kMapas'), groups.length);
+  animateCount($('kClientes'), groups.reduce((s,g)=>s+g.points.length,0));
+  animateCount($('kKm'), total('km'), 1);
+  animateCount($('kCajas'), total('cajas'));
+  const fecha = (groups[0] && groups[0].fecha) || '';
+  $('sFecha').textContent = (esDemo ? 'DEMO · ' : '') + (fecha || 'Sin fecha');
+  $('chipDate').classList.add('show');
+  renderRoutes(); renderDetail(); updateCount();
+}
+
+/* ---------- Lista de rutas ---------- */
+function visibleRoutes(){
+  const q = norm($('search').value);
+  const byRuta = new Map();
+  for (const g of groups){
+    if (filtro==='pending' && downloaded.has(g.key)) continue;
+    if (q && !norm(g.ruta).includes(q) && !norm(g.vehiculo).includes(q) && !g.points.some(p=>norm(p.cliente).includes(q) || norm(p.codigo).includes(q))) continue;
+    if (!byRuta.has(g.ruta)) byRuta.set(g.ruta, []);
+    byRuta.get(g.ruta).push(g);
+  }
+  if (filtro==='multi') for (const [r,gs] of byRuta) if (groups.filter(g=>g.ruta===r).length<2) byRuta.delete(r);
+  return byRuta;
+}
+
+function renderRoutes(){
+  const box = $('routes'); box.innerHTML='';
+  const byRuta = visibleRoutes();
+  const nV = [...byRuta.values()].reduce((s,gs)=>s+gs.length,0);
+  $('listInfo').textContent = `${byRuta.size} rutas · ${nV} viajes`;
+  if (!byRuta.size){ box.innerHTML='<div class="empty">No hay rutas que coincidan con la búsqueda o el filtro.</div>'; return; }
+  let k = 0;
+  for (const [ruta, gs] of byRuta){
+    const div = document.createElement('div');
+    const sel = gs.some(g=>g.key===activeKey);
+    div.className = 'route' + (sel?' sel':'');
+    div.style.setProperty('--rc', routeColor(gs[0].rutaIdx));
+    div.style.animationDelay = Math.min(k++*25, 400)+'ms';
+    const total = gs.reduce((s,g)=>s+g.points.length,0);
+    div.innerHTML = `<div class="route-top">
+        <div><div class="name">${esc(ruta)}</div><div class="veh">${esc(gs[0].vehiculo||'Sin placa')}</div></div>
+        <div class="tot"><b class="mono">${total}</b>clientes</div>
+      </div>
+      <div class="trips">${gs.map(g=>{
+        const d = downloaded.has(g.key);
+        return `<div class="trip ${g.key===activeKey?'active':''} ${d?'done':''}" data-key="${esc(g.key)}" style="--tc:${tripColor(g.viaje)}">
+          <span class="badge">Viaje ${esc(g.viaje)}</span>
+          <span class="meta"><span><b>${g.points.length}</b> cl.</span><span><b>${fmtNum(g.km,1)}</b> km</span>${g.inicio?`<span>${esc(g.inicio)}</span>`:''}</span>
+          <button class="dl" data-dl="${esc(g.key)}" title="Descargar ${esc(fileName(g))}"><svg class="i" style="width:15px;height:15px"><use href="#i-${d?'check':'download'}"/></svg>${d?'Listo':'Descargar'}</button>
+        </div>`; }).join('')}</div>`;
+    box.appendChild(div);
+  }
+}
+
+function seleccionarViaje(key){
+  activeKey = key;
+  document.querySelectorAll('.trip').forEach(t => t.classList.toggle('active', t.dataset.key===key));
+  document.querySelectorAll('.route').forEach(r => r.classList.toggle('sel', !!r.querySelector(`.trip[data-key="${CSS.escape(key||'')}"]`)));
+  const t = document.querySelector(`.trip[data-key="${CSS.escape(key||'')}"]`);
+  if (t) scrollDentro(document.querySelector('.list-panel'), t);
+  renderDetail();
+  if (window.innerWidth < 1050) document.querySelector('.detail').scrollIntoView({behavior:'smooth'});
+}
+function verGeneral(){ activeKey = null; seleccionarViaje(null); }
+
+/* ---------- Detalle (mapa + estadísticas + clientes) ---------- */
+function stat(v, k){ return `<div class="stat"><div class="v mono">${v}</div><div class="k">${k}</div></div>`; }
+
+function renderDetail(){
+  const g = groups.find(x=>x.key===activeKey);
+  const dl = $('btnDl');
+  if (!g){
+    const gs = [...visibleRoutes().values()].flat();
+    $('dTitle').innerHTML = `<span class="sw" style="background:var(--grad)"></span>Vista general`;
+    $('dSub').textContent = `Todas las rutas${(groups[0]&&groups[0].fecha)?' del '+groups[0].fecha:''} · cada color es una ruta`;
+    $('dStats').innerHTML = stat(new Set(gs.map(x=>x.ruta)).size,'Rutas') + stat(gs.length,'Viajes')
+      + stat(fmtNum(gs.reduce((s,x)=>s+x.points.length,0)),'Clientes') + stat(fmtNum(gs.reduce((s,x)=>s+x.km,0),1),'Km');
+    $('clients').classList.add('hidden');
+    $('btnOverview').classList.add('hidden');
+    dl.innerHTML = `<svg class="i"><use href="#i-download"/></svg>KML general`;
+    dl.title = 'Un solo KML con todas las rutas visibles (carpetas por ruta y viaje)';
+    dibujarGeneral(gs);
+    return;
+  }
+  const c = tripColor(g.viaje);
+  $('dTitle').innerHTML = `<span class="sw" style="background:${c}"></span>${esc(g.ruta)} · Viaje ${esc(g.viaje)}`;
+  $('dSub').textContent = [g.vehiculo, g.fecha, fileName(g)].filter(Boolean).join(' · ');
+  $('dStats').innerHTML = stat(g.points.length,'Clientes') + stat(fmtNum(g.km,1),'Km') + stat(fmtNum(g.cajas),'Cajas entrega')
+    + stat(esc(g.inicio||'—'),'Primera llegada') + stat(esc(g.fin||'—'),'Última salida');
+  $('btnOverview').classList.remove('hidden');
+  const d = downloaded.has(g.key);
+  dl.innerHTML = `<svg class="i"><use href="#i-${d?'check':'download'}"/></svg>${d?'Descargar de nuevo':'Descargar KML'}`;
+  dl.title = 'Descargar '+fileName(g);
+
+  const n = g.points.length, box = $('clients');
+  box.classList.remove('hidden');
+  box.style.setProperty('--tc', c);
+  box.innerHTML = g.points.map((p,i)=>`<div class="client" data-i="${i}">
+      <div class="num ${i===0?'start':(i===n-1&&n>1?'end':'')}">${esc(p.n)}</div>
+      <div><div class="nm">${esc(p.cliente||'Cliente')}</div><div class="ad">${esc([p.codigo,p.direccion,p.distrito].filter(Boolean).join(' · '))}</div></div>
+      <div class="hr"><b class="mono">${esc(p.llega||'')}</b>${p.entrega?esc(p.entrega)+' cj':''}</div>
+    </div>`).join('');
+  dibujarViaje(g);
+}
+
+/* ---------- Descargas ---------- */
+function downloadTrip(g){
+  if (!g) return;
+  downloadBlob(kmlFor([g], g.ruta+' · Viaje '+g.viaje+(g.fecha?' · '+g.fecha:'')), fileName(g));
+  downloaded.add(g.key);
+  const t = document.querySelector(`.trip[data-key="${CSS.escape(g.key)}"]`);
+  if (t){
+    if (filtro==='pending') renderRoutes();
+    else { t.classList.add('done'); t.querySelector('.dl').innerHTML = `<svg class="i" style="width:15px;height:15px"><use href="#i-check"/></svg>Listo`; }
+  }
+  if (g.key===activeKey) renderDetailButton(g);
+  updateCount();
+}
+function renderDetailButton(g){
+  $('btnDl').innerHTML = `<svg class="i"><use href="#i-check"/></svg>Descargar de nuevo`;
+}
+function downloadGeneral(){
+  const gs = [...visibleRoutes().values()].flat();
+  const f = (groups[0]&&groups[0].fecha)||'';
+  downloadBlob(kmlFor(gs, 'DABRIXO S.A.C. · Hoja de ruta '+f), `Hoja_de_Ruta_${f?f.replace(/\//g,'-'):fileBase}.kml`);
+}
+
+function updateCount(){
+  const n = groups.length, d = groups.filter(g=>downloaded.has(g.key)).length;
+  $('dlCount').textContent = `${d} / ${n} descargados`;
+  $('pFill').style.width = n ? (d/n*100)+'%' : '0';
+  if (n && d===n && !celebrado){ celebrado = true; confetti(); toast('¡Listo! Descargaste los '+n+' mapas'); }
+}
+
+/* ---------- Tema claro / oscuro ---------- */
+function aplicarTema(t){
+  document.documentElement.dataset.theme = t;
+  $('btnTheme').innerHTML = `<svg class="i"><use href="#i-${t==='dark'?'sun':'moon'}"/></svg>`;
+  try{ localStorage.setItem('kml-tema', t); }catch(e){}
+  ponerBase();
+}
+
+</script>
+<script>
+/* =========================================================
+ * demo.js
+ * Datos de ejemplo (ficticios) para presentar el programa
+ * sin usar información real de clientes.
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+function generarDemo(){
+  // Generador pseudoaleatorio con semilla: la demo siempre se ve igual
+  let seed = 20261102;
+  const rnd = () => (seed = (seed*1664525 + 1013904223) % 4294967296) / 4294967296;
+
+  const zonas = [
+    {d:'COMAS', lat:-11.935, lon:-77.050}, {d:'LOS OLIVOS', lat:-11.968, lon:-77.072},
+    {d:'SAN MARTIN DE PORRES', lat:-12.010, lon:-77.085}, {d:'INDEPENDENCIA', lat:-11.993, lon:-77.055},
+    {d:'CARABAYLLO', lat:-11.880, lon:-77.030}, {d:'PUENTE PIEDRA', lat:-11.865, lon:-77.075},
+    {d:'ANCON', lat:-11.775, lon:-77.155}, {d:'VENTANILLA', lat:-11.875, lon:-77.130}
+  ];
+  const nombres = ['Bodega','Minimarket','Market','Licorería','Tienda','Distribuidora','Bodeguita','Abarrotes'];
+  const apellidos = ['San Juan','El Sol','Doña Rosa','La Esquina','Los Andes','Mi Barrio','El Porvenir','Santa Rosa','La Económica','Don Pepe','Las Flores','El Ahorro'];
+  const tipos = ['POC Tradicional','LA Nulo','LA Especial'];
+  const placas = ['DMO-101','DMO-202','DMO-303','DMO-404','DMO-505','DMO-606','DMO-707','DMO-808'];
+  const fecha = new Date(); fecha.setHours(0,0,0,0);
+
+  const headers = ['Ruta','Vehículo','Fecha','Código','Tipo Cliente','Cliente','Dirección','Abre','Cierra','Viaje','Dist (Km)','Sec','Entrega','Recojo','Llega','Sale','Distrito','Longitud','Latitud'];
+  const rows = [];
+  zonas.forEach((z, r) => {
+    const ruta = 'DEMO' + String(r+1).padStart(2,'0');
+    const viajes = r % 3 === 0 ? 2 : 1;
+    let min = 7*60 + 30;
+    for (let v = 1; v <= viajes; v++){
+      const n = 12 + Math.floor(rnd()*18);
+      let lat = z.lat + (rnd()-.5)*.01, lon = z.lon + (rnd()-.5)*.01, ang = rnd()*Math.PI*2;
+      for (let s = 1; s <= n; s++){
+        ang += (rnd()-.5)*1.4;
+        const paso = .0015 + rnd()*.003;
+        const nLat = lat + Math.sin(ang)*paso, nLon = lon + Math.cos(ang)*paso;
+        const dist = s===1 ? 6 + rnd()*10 : haversine({lat,lon},{lat:nLat,lon:nLon});
+        lat = nLat; lon = nLon;
+        min += Math.round(3 + dist*3);
+        const llega = min; min += 6 + Math.floor(rnd()*12);
+        const hm = m => pad(Math.floor(m/60)) + ':' + pad(m%60);
+        rows.push([ruta, placas[r], fecha, String(13000000 + r*1000 + v*100 + s), tipos[Math.floor(rnd()*3)],
+          `${nombres[Math.floor(rnd()*nombres.length)]} ${apellidos[Math.floor(rnd()*apellidos.length)]}`,
+          `Av. Ejemplo ${100 + Math.floor(rnd()*900)} Mz ${String.fromCharCode(65+Math.floor(rnd()*20))} Lt ${1+Math.floor(rnd()*30)}`,
+          '06:00','23:59', v, dist.toFixed(2), s, 5 + Math.floor(rnd()*50), Math.floor(rnd()*25), hm(llega), hm(min), z.d, lon, lat]);
+      }
+      min += 60; // regreso al almacén entre viajes
+    }
+  });
+  return {headers, rows};
+}
+
+function cargarDemo(){
+  esDemo = true;
+  fileBase = 'Demo';
+  iniciarConDatos(generarDemo(), 'Datos de demostración (ficticios)');
+  toast('Demostración cargada con datos ficticios');
+}
+
+</script>
+<script>
+/* =========================================================
+ * app.js
+ * Conecta los botones y eventos de la pantalla
+ * Generador de Mapas KML - DABRIXO S.A.C.
+ * ========================================================= */
+"use strict";
+
+/* ---------- Tema guardado ---------- */
+(() => { let t = 'dark'; try{ t = localStorage.getItem('kml-tema') || 'dark'; }catch(e){} aplicarTema(t); })();
+$('btnTheme').addEventListener('click', () => aplicarTema(document.documentElement.dataset.theme==='dark' ? 'light' : 'dark'));
+
+/* ---------- Importar archivo (clic o arrastrar) ---------- */
+const drop = $('drop'), fileIn = $('file');
+const abrirSelector = () => fileIn.click();
+drop.addEventListener('click', abrirSelector);
+$('btnPick').addEventListener('click', abrirSelector);
+$('btnNew').addEventListener('click', abrirSelector);
+$('btnDemo').addEventListener('click', cargarDemo);
+['dragover','dragenter'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev==='drop' || !e.relatedTarget) drop.classList.remove('over'); }));
+document.addEventListener('drop', e => { if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+fileIn.addEventListener('change', () => { if (fileIn.files[0]) load(fileIn.files[0]); fileIn.value=''; });
+
+/* ---------- Columnas ---------- */
+$('reprocess').addEventListener('click', () => {
+  document.querySelectorAll('#mapping select').forEach(s => map[s.dataset.k] = parseInt(s.value,10));
+  process(); toast('Columnas aplicadas');
+});
+
+/* ---------- Búsqueda y filtros ---------- */
+$('search').addEventListener('input', () => { renderRoutes(); if (!activeKey) renderDetail(); });
+$('filter').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  filtro = b.dataset.f;
+  $('filter').querySelectorAll('button').forEach(x => x.classList.toggle('on', x===b));
+  renderRoutes(); if (!activeKey) renderDetail();
+});
+
+/* ---------- Lista de rutas: descargar / seleccionar ---------- */
+$('routes').addEventListener('click', e => {
+  const dl = e.target.closest('[data-dl]');
+  if (dl){ e.stopPropagation(); downloadTrip(groups.find(x=>x.key===dl.dataset.dl)); return; }
+  const t = e.target.closest('.trip');
+  if (t) seleccionarViaje(t.dataset.key);
+});
+
+/* ---------- Lista de clientes ⇄ mapa ---------- */
+$('clients').addEventListener('mouseover', e => { const c=e.target.closest('.client'); if (c) resaltarCliente(+c.dataset.i, true); });
+$('clients').addEventListener('mouseout',  e => { const c=e.target.closest('.client'); if (c) resaltarCliente(+c.dataset.i, false); });
+$('clients').addEventListener('click',     e => { const c=e.target.closest('.client'); if (c) enfocarCliente(+c.dataset.i); });
+$('fallback').addEventListener('click', e => { const l=e.target.closest('[data-key]'); if (l) seleccionarViaje(l.dataset.key); });
+
+/* ---------- Botones del detalle ---------- */
+$('btnDl').addEventListener('click', () => { const g = groups.find(x=>x.key===activeKey); g ? downloadTrip(g) : downloadGeneral(); });
+$('btnOverview').addEventListener('click', verGeneral);
+$('btnFit').addEventListener('click', centrar);
+$('baseSel').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  baseActual = b.dataset.b;
+  $('baseSel').querySelectorAll('button').forEach(x => x.classList.toggle('on', x===b));
+  ponerBase();
+});
+$('optLine').addEventListener('change', renderDetail);
+
+/* ---------- Teclado: Esc vuelve a la vista general ---------- */
+document.addEventListener('keydown', e => { if (e.key==='Escape' && activeKey && document.activeElement.tagName!=='INPUT') verGeneral(); });
+
+</script>
+</body>
+</html>
