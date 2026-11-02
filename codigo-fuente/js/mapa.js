@@ -13,10 +13,14 @@ let marcadores = [];      // marcadores del viaje mostrado (para resaltar)
 let limites = null;       // área a centrar
 let baseActual = 'map';   // map | sat
 
+// Fondos de mapa gratuitos sin clave (Esri). nz = zoom máximo real del servicio
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
 const TILES = {
-  dark:  ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
-  light: ['https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
-  sat:   ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 'Imágenes &copy; Esri']
+  dark:  {url: ESRI+'Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', nz:16,
+          etiquetas: ESRI+'Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', attr:'Mapa &copy; Esri, HERE, Garmin, OpenStreetMap'},
+  light: {url: ESRI+'World_Street_Map/MapServer/tile/{z}/{y}/{x}', nz:19, attr:'Mapa &copy; Esri, HERE, Garmin, OpenStreetMap'},
+  sat:   {url: ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}', nz:19,
+          etiquetas: ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', attr:'Imágenes &copy; Esri, Maxar, Earthstar Geographics'}
 };
 const hayLeaflet = () => typeof L !== 'undefined';
 
@@ -24,6 +28,7 @@ function iniciarMapa(){
   if (!hayLeaflet()){ $('map').classList.add('hidden'); $('fallback').classList.remove('hidden'); $('baseSel').classList.add('hidden'); return; }
   if (lmap) return;
   lmap = L.map('map', {zoomControl:true, preferCanvas:false}).setView([-11.95,-77.06], 11);
+  const pe = lmap.createPane('etiquetas'); pe.style.zIndex = 350; pe.style.pointerEvents = 'none';  // nombres de calles bajo las rutas
   ponerBase();
 }
 
@@ -32,7 +37,8 @@ function ponerBase(){
   if (capaBase) lmap.removeLayer(capaBase);
   const tema = document.documentElement.dataset.theme;
   const t = baseActual==='sat' ? TILES.sat : (tema==='light' ? TILES.light : TILES.dark);
-  capaBase = L.tileLayer(t[0], {attribution:t[1], maxZoom:19, subdomains:'abcd'}).addTo(lmap);
+  const op = {attribution:t.attr, maxZoom:19, maxNativeZoom:t.nz};
+  capaBase = L.layerGroup([L.tileLayer(t.url, op)].concat(t.etiquetas ? [L.tileLayer(t.etiquetas, {maxZoom:19, maxNativeZoom:t.nz, pane:'etiquetas', opacity:.9})] : [])).addTo(lmap);
 }
 
 function limpiarMapa(){
